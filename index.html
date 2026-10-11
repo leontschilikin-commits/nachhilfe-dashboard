@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nachhilfe Dashboard</title>
+<meta name="theme-color" content="#0a74ff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">🎓</span><span>Nachhilfe</span></div>
+    <nav>
+      <a href="#einheiten" data-tab="einheiten"><span>📅</span> Einheiten</a>
+      <a href="#auswertung" data-tab="auswertung"><span>📊</span> Auswertung</a>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="ghost" id="export-btn" type="button">Daten exportieren</button>
+      <button class="ghost" id="import-btn" type="button">Daten importieren</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+    </div>
+  </aside>
+  <main>
+    <section id="view-einheiten" class="view"></section>
+    <section id="view-auswertung" class="view" hidden></section>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
