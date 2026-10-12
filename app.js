@@ -43,6 +43,11 @@ window.addEventListener("hashchange", showTab);
 // ======================================================================
 // Einheiten
 // ======================================================================
+const SORTS = { date: "Datum", name: "Name", subject: "Fach", amount: "Betrag", status: "Status" };
+const sort = (() => {
+  try { const v = JSON.parse(localStorage.getItem("nd.sort")); if (v && SORTS[v.key]) return { key: v.key, desc: !!v.desc }; } catch {}
+  return { key: "date", desc: false };
+})();
 const form = { editingId: null, day: new Date(), hour: 16, minute: 0, calMonth: new Date() };
 
 function tile(icon, title, value, detail) {
@@ -70,7 +75,10 @@ function buildSessionsView() {
         </div>
       </div>
     </div>
-    <div class="card"><div class="list-head"><h2><span class="ico">☰</span>Geplante Einheiten</h2></div><div id="s-list"></div></div>`;
+    <div class="card"><div class="list-head"><h2><span class="ico">☰</span>Geplante Einheiten</h2>
+      <div class="sortbar"><label for="s-sort">Sortieren nach</label>
+        <select id="s-sort">${Object.entries(SORTS).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select>
+        <button class="icon-btn" id="s-dir" type="button"></button></div></div><div id="s-list"></div></div>`;
 
   buildWheel($("#w-hour"), 24, v => { form.hour = v; });
   buildWheel($("#w-min"), 60, v => { form.minute = v; });
@@ -83,6 +91,10 @@ function buildSessionsView() {
   $("#f-cancel").addEventListener("click", resetForm);
   $("#form-card").addEventListener("keydown", e => { if (e.key === "Enter" && !$("#f-save").disabled && e.target.tagName === "INPUT") saveSession(); });
   $("#s-list").addEventListener("click", onListClick);
+  const saveSort = () => { try { localStorage.setItem("nd.sort", JSON.stringify(sort)); } catch {} };
+  $("#s-sort").value = sort.key;
+  $("#s-sort").addEventListener("change", e => { sort.key = e.target.value; saveSort(); renderSessionLists(); });
+  $("#s-dir").addEventListener("click", () => { sort.desc = !sort.desc; saveSort(); renderSessionLists(); });
   resetForm();
 }
 
@@ -206,9 +218,29 @@ function renderSessionLists() {
     tile("⏳", "Offen", euro(openAmount()), "noch nicht bezahlt") +
     tile("€", "Dieser Monat", euro(month));
 
-  $("#s-list").innerHTML = sessions.length === 0
-    ? '<div class="empty">Keine Einheiten – trage oben deine erste ein.</div>'
-    : upcoming.map(s => rowHtml(s, false)).join("") + (past.length ? '<div class="sub">Vergangen</div>' + past.map(s => rowHtml(s, true)).join("") : "");
+  const dir = sort.desc ? -1 : 1;
+  $("#s-dir").textContent = sort.desc ? "↓" : "↑";
+  $("#s-dir").title = sort.desc ? "Absteigend – klicken für aufsteigend" : "Aufsteigend – klicken für absteigend";
+
+  let html;
+  if (sessions.length === 0) {
+    html = '<div class="empty">Keine Einheiten – trage oben deine erste ein.</div>';
+  } else if (sort.key === "date") {
+    // Standard: Anstehende zuerst (nächste oben), darunter die vergangenen (jüngste oben). Richtung kehrt beides um.
+    const up = upcoming.slice(), pa = past.slice();
+    if (sort.desc) { up.reverse(); pa.reverse(); }
+    html = up.map(s => rowHtml(s, false)).join("") + (pa.length ? '<div class="sub">Vergangen</div>' + pa.map(s => rowHtml(s, true)).join("") : "");
+  } else {
+    const cmp = {
+      name: (a, b) => a.studentName.localeCompare(b.studentName, "de"),
+      subject: (a, b) => a.subject.localeCompare(b.subject, "de"),
+      amount: (a, b) => a.hourlyRate - b.hourlyRate,
+      status: (a, b) => (a.isPaid - b.isPaid) // offen zuerst
+    }[sort.key];
+    const flat = sessions.slice().sort((a, b) => dir * cmp(a, b) || dateOf(a) - dateOf(b));
+    html = flat.map(s => rowHtml(s, dateOf(s) < now)).join("");
+  }
+  $("#s-list").innerHTML = html;
 }
 function renderSessions() {
   if (!$("#s-tiles")) buildSessionsView();
